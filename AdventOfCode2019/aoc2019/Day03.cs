@@ -17,6 +17,12 @@ namespace aoc2019
             this.y = y;
         }
 
+        public Pos(Pos other)
+        {
+            this.x = other.x;
+            this.y = other.y;
+        }
+
         public static Pos operator *(Pos p1, int n)
         {
             return new Pos(p1.x * n, p1.y * n);
@@ -31,8 +37,6 @@ namespace aoc2019
         {
             return $"({x}, {y})";
         }
-
-        
 
         internal int manhattan(Pos inter)
         {
@@ -84,7 +88,7 @@ U62,R66,U55,R34,D71,R55,D58,R83";
 
         }
 
-        private int closestIntersection(string lines)
+        private int closestIntersection(string lines, bool isManhattan = true)
         {
             int N = 0;
             //mGrid = new int[N, N];
@@ -95,37 +99,44 @@ U62,R66,U55,R34,D71,R55,D58,R83";
                 { 'L', new Pos(-1, 0) },
                 { 'U', new Pos(0, -1) },
             };
-            var intersections = new List<Pos>();
+            var intersections = new List<(Pos, int)>();
             List<Pos>[] posPaths = new List<Pos>[2];
+            var visited = new HashSet<Pos>();
             using (StringReader reader = new StringReader(lines))
             {
                 string line;
                 //int flag = 1;
                 int index = 0;
-                var posPath = new HashSet<Pos>();
+                var posPath = new Dictionary<Pos, int>();
                 while ((line = reader.ReadLine()) != null)
                 {
-                    Pos pos = start;
+                    Pos pos = new Pos(start);
+
                     var path = line.Trim().Split(",");
+                    int dist = 0;
                     foreach (var el in path)
                     {
                         var dir = el[0];
                         var n = int.Parse(el.Substring(1));
                         for (int i = 0; i < n; i++)
                         {
+                            dist ++;
                             pos += directions[dir];
                             if (index == 0)
                             {
-                                posPath.Add(new Pos(pos.x, pos.y));
+                                if (!posPath.ContainsKey(pos))
+                                {
+                                    posPath[new Pos(pos)] = dist;
+                                }
                             }
                             else
                             {
-                                if (posPath.Contains(pos))
+                                if (posPath.ContainsKey(pos) && !visited.Contains(pos))
                                 {
-                                    intersections.Add(new Pos(pos.x, pos.y));
+                                    intersections.Add((new Pos(pos), posPath[pos] + dist));
+                                    visited.Add(new Pos(pos));
                                 }
                             }
-
                             //mGrid[pos.y, pos.x] |= flag;
                         }
                     }
@@ -135,26 +146,121 @@ U62,R66,U55,R34,D71,R55,D58,R83";
                     index++;
                 }
             }
-            //var intersections = posPaths[0].Intersect(posPaths[1]);
-            //Console.WriteLine(String.Join(",", intersections));
-            //for (int x = 0; x < N; x++)
-            //{
-            //    for (int y = 0; y < N; y++)
-            //    {
-            //        if (mGrid[y,x] == 3)
-            //        {
-            //            intersections.Add(new Pos(x, y));
-            //        }
-            //    }
-            //}
             int minDist = int.MaxValue;
-            foreach (var inter in intersections)
+            foreach (var kv in intersections)
             {
-                minDist = Math.Min(minDist, start.manhattan(inter));
+                if (isManhattan)
+                {
+                    minDist = Math.Min(minDist, start.manhattan(kv.Item1));
+                }
+                else
+                {
+                    minDist = Math.Min(minDist, kv.Item2);
+                }
             }
             //Console.WriteLine(String.Join(",", intersections));
             return minDist;
         }
+
+        //private int closestIntersection2(string lines)
+        //{
+        //    int N = 0;
+        //    //mGrid = new int[N, N];
+        //    Pos start = new Pos(N / 2, N / 2);
+        //    var directions = new Dictionary<char, Pos>() {
+        //        { 'R', new Pos(1, 0) },
+        //        { 'D', new Pos(0, 1) },
+        //        { 'L', new Pos(-1, 0) },
+        //        { 'U', new Pos(0, -1) },
+        //    };
+        //    var intersections = new List<Pos>() {new Pos(start.x, start.y)};
+        //    List<Pos>[] posPaths = new List<Pos>[2];
+        //    Pos closest = null;
+        //    var distances = new Dictionary<Pos, int>();
+        //    using (StringReader reader = new StringReader(lines))
+        //    {
+        //        string line;
+        //        //int flag = 1;
+        //        int index = 0;
+        //        var posPath = new List<Pos>();
+        //        int distance = 0;
+        //        while ((line = reader.ReadLine()) != null)
+        //        {
+        //            Pos pos = start;
+        //            var path = line.Trim().Split(",");
+        //            foreach (var el in path)
+        //            {
+        //                var dir = el[0];
+        //                var n = int.Parse(el.Substring(1));
+        //                for (int i = 0; i < n; i++)
+        //                {
+        //                    pos += directions[dir];
+        //                    if (index == 1 && posPaths[0].Contains(pos))
+        //                    {
+        //                        intersections.Add(new Pos(pos.x, pos.y));
+        //                    }
+        //                    posPath.Add(new Pos(pos.x, pos.y));
+        //                    if (closest == null || start.manhattan(pos) < closest.manhattan(pos))
+        //                    {
+        //                        closest = new Pos(pos);
+        //                    }
+        //                }
+        //            }
+        //            posPaths[index] = posPath;
+        //            index++;
+        //        }
+        //    }
+
+        //    //var distances = new Dictionary<(Pos, Pos), int>();
+        //    //int distance = 0;
+        //    //Pos last = new Pos(start);
+        //    //foreach (var pos in posPaths[0])
+        //    //{
+        //    //    if (intersections.Contains(pos))
+        //    //    {
+        //    //        distances[(last, pos)] = distance;
+        //    //        distances[(pos, last)] = distance;
+        //    //        distance = 0;
+        //    //    }
+        //    //    else
+        //    //    {
+        //    //        distance++;
+        //    //    }
+        //    //}
+        //    //distance = 0;
+        //    //last = new Pos(start);
+        //    //foreach (var pos in posPaths[2])
+        //    //{
+        //    //    if (intersections.Contains(pos))
+        //    //    {
+        //    //        distances[(last, pos)] = Math.Min(distances[(last, pos)], distance);
+        //    //        distances[(pos, last)] = Math.Min(distances[(pos, last)], distance);
+        //    //        distance = 0;
+        //    //        last = new Pos(pos);
+        //    //    }
+        //    //    else
+        //    //    {
+        //    //        distance++;
+        //    //    }
+        //    //}
+
+
+
+        //    int min = int.MaxValue;
+        //    var stack = new Stack<Pos>();
+        //    stack.Push(start);
+        //    foreach (var pair in distances)
+        //    {
+
+        //    }
+        //    //int minDist = int.MaxValue;
+        //    //foreach (var kv in intersections)
+        //    //{
+        //    //    minDist = Math.Min(minDist, isManhattan ? start.manhattan(kv.Item1) : kv.Item2);
+        //    //}
+        //    //Console.WriteLine(String.Join(",", intersections));
+        //    return minDist;
+        //}
 
         [TestMethod]
         public void Part1()
@@ -176,12 +282,19 @@ U62,R66,U55,R34,D71,R55,D58,R83";
         [TestMethod]
         public void ExamplePart2()
         {
-
+            string example1 = @"R75,D30,R83,U83,L12,D49,R71,U7,L72
+U62,R66,U55,R34,D71,R55,D58,R83";
+            Assert.AreEqual(610, closestIntersection(example1, false));
+            string example2 = @"R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51
+ U98,R91,D20,R16,D67,R40,U7,R15,U6,R7";
+            Assert.AreEqual(410, closestIntersection(example2, false));
         }
 
         [TestMethod]
         public void Part2()
         {
+            //11869 incorrect
+            Console.WriteLine(closestIntersection(input, false));
             
         }
 
