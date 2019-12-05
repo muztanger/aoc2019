@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -8,6 +9,16 @@ namespace aoc2019
 {
     public class Common
     {
+        public static IEnumerable<string> GetLines(string input)
+        {
+            using StringReader reader = new StringReader(input);
+            string line;
+            while ((line = reader.ReadLine()) != null)
+            {
+                yield return line;
+            }
+        }
+
         // https://stackoverflow.com/questions/228038/best-way-to-reverse-a-string?page=1&tab=votes#tab-top
         public static string Reverse(string s)
         {
