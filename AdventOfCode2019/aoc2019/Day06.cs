@@ -10,6 +10,7 @@ namespace aoc2019
     public class Node : IEquatable<Node>
     {
         public string Id;
+        public Node Parent = null;
         public List<Node> Children = null;
 
         public Node(string id, Node child = null)
@@ -62,6 +63,7 @@ namespace aoc2019
             }
             return sum;
         }
+
     }
 
     [TestClass]
@@ -90,15 +92,16 @@ K)L";
             COM - B - C - D - E - F
                            \
                             I*/
-            Node com = parse(example);
+            var nodes = new HashSet<Node>();
+            Node com = parse(example, ref nodes);
             Console.WriteLine(com);
             Assert.AreEqual(42, com.Orbits());
         }
 
-        private static Node parse(string example)
+        private static Node parse(string example, ref HashSet<Node> nodes)
         {
             Node com = null;
-            var nodes = new HashSet<Node>();
+            //var nodes = new HashSet<Node>();
             foreach (string line in Common.GetLines(example))
             {
                 var arr = line.Split(")");
@@ -134,6 +137,15 @@ K)L";
                         node1.Children.Add(node2);
                     }
                 }
+
+                if (node2.Parent == null)
+                {
+                    node2.Parent = node1;
+                }
+                else
+                {
+                    Assert.AreEqual(node2.Parent, node1);
+                }
             }
 
             return com;
@@ -142,24 +154,103 @@ K)L";
         [TestMethod]
         public void Part1()
         {
-            Node com = parse(input);
+            var nodes = new HashSet<Node>();
+            Node com = parse(input, ref nodes);
             Assert.AreEqual(130681, com.Orbits());
         }
 
+        [TestMethod]
+        public void Part2Example()
+        {
+            string example = @"COM)B
+B)C
+C)D
+D)E
+E)F
+B)G
+G)H
+D)I
+E)J
+J)K
+K)L
+K)YOU
+I)SAN";
 
+            var nodes = new HashSet<Node>();
+            parse(example, ref nodes);
+            var youStack = new Stack<Node>();
+            {
+                Assert.IsTrue(nodes.TryGetValue(new Node("YOU"), out Node start));
+                Node current = start;
+                while (current != null)
+                {
+                    youStack.Push(current);
+                    current = current.Parent;
+                }
+            }
 
+            var sanStack = new Stack<Node>();
+            {
+                Assert.IsTrue(nodes.TryGetValue(new Node("SAN"), out Node start));
+                Node current = start;
+                while (current != null)
+                {
+                    sanStack.Push(current);
+                    current = current.Parent;
+                }
+            }
+
+            while (youStack.Peek().Equals(sanStack.Peek()))
+            {
+                youStack.Pop();
+                sanStack.Pop();
+            }
+
+            Assert.AreEqual(4, youStack.Count() + sanStack.Count() - 2);
+        }
 
         [TestMethod]
         public void Part2()
         {
 
+            var nodes = new HashSet<Node>();
+            parse(input, ref nodes);
+            var youStack = new Stack<Node>();
+            {
+                Assert.IsTrue(nodes.TryGetValue(new Node("YOU"), out Node start));
+                Node current = start;
+                while (current != null)
+                {
+                    youStack.Push(current);
+                    current = current.Parent;
+                }
+            }
+
+            var sanStack = new Stack<Node>();
+            {
+                Assert.IsTrue(nodes.TryGetValue(new Node("SAN"), out Node start));
+                Node current = start;
+                while (current != null)
+                {
+                    sanStack.Push(current);
+                    current = current.Parent;
+                }
+            }
+
+            while (youStack.Peek().Equals(sanStack.Peek()))
+            {
+                youStack.Pop();
+                sanStack.Pop();
+            }
+
+            Assert.AreEqual(313, youStack.Count() + sanStack.Count() - 2);
         }
 
 
 
 
 
-            
+
         private static string input = @"XNR)9W1
 VGS)XCW
 WS5)5XM
