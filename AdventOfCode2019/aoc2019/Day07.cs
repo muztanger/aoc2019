@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace aoc2019
@@ -11,30 +12,39 @@ namespace aoc2019
     {
         public Amplifier Next = null;
         public int Phase;
-        public int Input;
-        public ManualResetEvent Signal;
+        public Queue<int> Input;
+        public AutoResetEvent Signal;
+        public readonly string Id;
         public int Output;
+        
+        private bool isPhase = true;
+        private int instructionPointer = 0;
+        private int[] memory = new int[1000000];
 
-        public Amplifier(int phase, ManualResetEvent signal)
+        public Amplifier(int phase, AutoResetEvent signal, string id)
         {
             Phase = phase;
             Signal = signal;
+            Input = new Queue<int>();
+            this.Id = id;
         }
 
-        public void compute(int[] init)
+        public void init(int[] init)
         {
-            int instructionPointer = 0;
-            var memory = new int[1000000];
             for (int i = 0; i < init.Length; i++)
             {
                 memory[i] = init[i];
             }
+        }
 
-            int opCode = GetOpCode(memory[0]);
-            bool[] modes = GetModes(memory[0]);
-            Console.WriteLine($"INSTRUCTION: {opCode} {String.Join(",", modes)}");
-            bool isPhase = true;
-
+        public async Task<bool> compute()
+        {
+            //TODO Reset instruction pointer??
+            //instructionPointer = 0;
+            int opCode = GetOpCode(memory[instructionPointer]);
+            bool[] modes = GetModes(memory[instructionPointer]);
+            Console.WriteLine($"{Id}:INSTRUCTION {opCode} {String.Join(",", modes)}");
+            
             int count = 0;
             while (opCode != 99)
             {
@@ -57,14 +67,21 @@ namespace aoc2019
                         break;
                     case 3: // read
                         {
-                            Console.WriteLine($"READ: isPhase={isPhase} Phase={Phase} Input={Input}");
-                            int val = Input;
+                            Console.WriteLine($"{Id}: READ isPhase={isPhase} Phase={Phase} Input={Input}");
+                            int val;
                             if (isPhase)
                             {
                                 val = Phase;
                                 isPhase = false;
                             }
-                            Console.WriteLine($"      val={val}");
+                            else
+                            {
+                                Console.WriteLine($"{Id}: Wait for signal... ");
+                                Signal.WaitOne();
+                                val = Input.Dequeue();
+                                Console.WriteLine($"{Id}: Signal received");
+                            }
+                            Console.WriteLine($"{Id}: val={val}");
                             memory[memory[instructionPointer + 1]] = val; // from text
                             instructionPointer += 2;
                         }
@@ -80,13 +97,13 @@ namespace aoc2019
                             {
                                 val = memory[memory[instructionPointer + 1]];
                             }
-                            Console.WriteLine("OUTPUT: " + val);
+                            Console.WriteLine($"{Id}: OUTPUT {val} ");
                             Output = val;
-                            if (Next != null)
-                            {
-                                Next.Input = val;
+                            //if (Next != null)
+                            //{
+                                Next.Input.Enqueue(val);
                                 Next.Signal.Set();
-                            }
+                            //}
                             instructionPointer += 2;
                         }
                         break;
@@ -143,14 +160,16 @@ namespace aoc2019
                         break;
                     case 99: // stop
                         instructionPointer += 1;
+                        Console.WriteLine($"{Id}: STOP");
                         break;
                     default:
-                        throw new Exception($"Something went wrong opCode={opCode} count={count}");
+                        throw new Exception($"{Id}: Something went wrong opCode={opCode} count={count}");
                 }
                 opCode = GetOpCode(memory[instructionPointer]);
                 modes = GetModes(memory[instructionPointer]);
-                Console.WriteLine($"INSTRUCTION: {memory[instructionPointer]} => {opCode} {String.Join(",", modes)}");
+                Console.WriteLine($"{Id}: INSTRUCTION {memory[instructionPointer]} => {opCode} {String.Join(",", modes)}");
             }
+            return true;
         }
 
         private static void GetValues(int instructionPointer, ref int[] memory, ref bool[] modes, out int a, out int b)
@@ -205,14 +224,15 @@ namespace aoc2019
             Common.ForAllPermutation<int>(phaseSettings, (int[] phases) =>
             {
                 List<Amplifier> amplifiers = new List<Amplifier>();
-                ManualResetEvent signal = new ManualResetEvent(false);
+                var signal = new AutoResetEvent(false);
                 Amplifier last = null;
+                string names = "ABCDE";
                 for (int i = 0; i < 5; i++)
                 {
-                    Amplifier amp = new Amplifier(phases[i], signal);
+                    Amplifier amp = new Amplifier(phases[i], signal, names[i].ToString());
                     if (i == 0)
                     {
-                        amp.Input = 0;
+                        amp.Input.Enqueue(0);
                         amp.Signal.Set();
                     }
                     if (last != null)
@@ -228,33 +248,73 @@ namespace aoc2019
                 foreach (var amp in amplifiers)
                 {
                     var init = input.Split(",").Select(x => int.Parse(x.Trim())).ToArray();
-                    amp.compute(init);
+                    amp.init(init);
+                    amp.compute();
                 }
                 Console.WriteLine($"Result={amplifiers.Last().Output}");
                 max = Math.Max(max, amplifiers.Last().Output);
                 return false;
             });
             Console.WriteLine($"Final result: {max}");
+            Assert.AreEqual(366376, max);
         }
-
-        
-
-        
 
         [TestMethod]
         public void Part2()
         {
+            // feedback loop
+            // input integers from 5 to 9
+            int max = int.MinValue;
+            string names = "ABCDE";
+            int[] phaseSettings = new int[] { 5, 6, 7, 8, 9 };
+            Common.ForAllPermutation<int>(phaseSettings, (int[] phases) =>
+            {
+                List<Amplifier> amplifiers = new List<Amplifier>();
+                Amplifier last = null;
+                for (int i = 0; i < 5; i++)
+                {
+                    var signal = new AutoResetEvent(false);
+                    Amplifier amp = new Amplifier(phases[i], signal, names[i].ToString());
+                    if (i == 0)
+                    {
+                        amp.Input.Enqueue(0);
+                        amp.Signal.Set();
+                    }
+                    if (last != null)
+                    {
+                        last.Next = amp;
+                    }
+                    amplifiers.Add(amp);
 
+                    last = amp;
+                }
+                amplifiers.Last().Next = amplifiers.First();
 
-            
+                // find the largest output signal that can be sent to the thrusters by trying every possible combination of phase settings on the amplifiers
+                foreach (var amp in amplifiers)
+                {
+                    amp.init(input.Split(",").Select(x => int.Parse(x.Trim())).ToArray());
+                }
+                var tasks = new List<Task>();
+                for (int i = 0; i < amplifiers.Count; i++)
+                {
+                    Amplifier amp = amplifiers[i];
+                    var t = Task.Run(async delegate
+                    {
+                        await amp.compute();
+                    });
+                    tasks.Add(t);
+                }
+                Task.WaitAll(tasks.ToArray());
 
+                Console.WriteLine($"Result={amplifiers.Last().Output}");
+                max = Math.Max(max, amplifiers.Last().Output);
+                return false;
+            });
+            Console.WriteLine($"Final result: {max}");
+            Assert.AreEqual(21596786, max);
         }
 
-
-
-
-
-            
         private static string input = @"3,8,1001,8,10,8,105,1,0,0,21,38,47,64,85,106,187,268,349,430,99999,3,9,1002,9,4,9,1001,9,4,9,1002,9,4,9,4,9,99,3,9,1002,9,4,9,4,9,99,3,9,1001,9,3,9,102,5,9,9,1001,9,5,9,4,9,99,3,9,101,3,9,9,102,5,9,9,1001,9,4,9,102,4,9,9,4,9,99,3,9,1002,9,3,9,101,2,9,9,102,4,9,9,101,2,9,9,4,9,99,3,9,1002,9,2,9,4,9,3,9,102,2,9,9,4,9,3,9,1001,9,2,9,4,9,3,9,1001,9,1,9,4,9,3,9,101,1,9,9,4,9,3,9,102,2,9,9,4,9,3,9,101,2,9,9,4,9,3,9,102,2,9,9,4,9,3,9,1002,9,2,9,4,9,3,9,1002,9,2,9,4,9,99,3,9,102,2,9,9,4,9,3,9,1002,9,2,9,4,9,3,9,1001,9,1,9,4,9,3,9,1002,9,2,9,4,9,3,9,101,1,9,9,4,9,3,9,1002,9,2,9,4,9,3,9,1001,9,2,9,4,9,3,9,1001,9,1,9,4,9,3,9,101,2,9,9,4,9,3,9,101,1,9,9,4,9,99,3,9,102,2,9,9,4,9,3,9,102,2,9,9,4,9,3,9,1001,9,1,9,4,9,3,9,1002,9,2,9,4,9,3,9,102,2,9,9,4,9,3,9,1002,9,2,9,4,9,3,9,101,1,9,9,4,9,3,9,101,1,9,9,4,9,3,9,101,1,9,9,4,9,3,9,1002,9,2,9,4,9,99,3,9,1002,9,2,9,4,9,3,9,102,2,9,9,4,9,3,9,101,1,9,9,4,9,3,9,1001,9,1,9,4,9,3,9,1002,9,2,9,4,9,3,9,102,2,9,9,4,9,3,9,102,2,9,9,4,9,3,9,101,2,9,9,4,9,3,9,102,2,9,9,4,9,3,9,1002,9,2,9,4,9,99,3,9,1002,9,2,9,4,9,3,9,101,1,9,9,4,9,3,9,102,2,9,9,4,9,3,9,1001,9,2,9,4,9,3,9,1002,9,2,9,4,9,3,9,1002,9,2,9,4,9,3,9,1001,9,1,9,4,9,3,9,1002,9,2,9,4,9,3,9,1001,9,1,9,4,9,3,9,102,2,9,9,4,9,99";
-}
+    }
 }
