@@ -14,7 +14,6 @@ namespace aoc2019
         public IntcodeComputer Next = null;
         public int Phase;
         public Queue<BigInteger> Input;
-        //public AutoResetEvent Signal;
         public readonly string Id;
         public List<BigInteger> Output;
 
@@ -24,8 +23,6 @@ namespace aoc2019
 
         public IntcodeComputer(string id)
         {
-            //Phase = phase;
-            //Signal = signal;
             Input = new Queue<BigInteger>();
             Input.Enqueue(1);
             Output = new List<BigInteger>();
@@ -55,36 +52,27 @@ namespace aoc2019
                     case 1: // add
                         {
                             GetValues(ref modes, out BigInteger a, out BigInteger b);
-                            mMemory[(int) mMemory[mInstructionPointer + 3]] = a + b;
+                            int memoryIndex = GetMemoryIndex(modes, 3);
+                            mMemory[memoryIndex] = a + b;
                         }
                         mInstructionPointer += 4;
                         break;
                     case 2: // multiply
                         {
                             GetValues(ref modes, out BigInteger a, out BigInteger b);
-                            mMemory[(int) mMemory[mInstructionPointer + 3]] = a * b;
+                            int memoryIndex = GetMemoryIndex(modes, 3);
+                            mMemory[memoryIndex] = a * b;
                         }
                         mInstructionPointer += 4;
                         break;
                     case 3: // read
                         {
-                            Console.WriteLine($"{Id}: READ Input={Input}");
-                            BigInteger val;
-                            //if (isPhase)
-                            //{
-                            //    val = Phase;
-                            //    isPhase = false;
-                            //}
-                            //else
-                            //{
-                                Console.WriteLine($"{Id}: Wait for signal... ");
-                                //Signal.WaitOne();
-                                
-                                val = Input.Dequeue();
-                                Console.WriteLine($"{Id}: Signal received");
-                            //}
-                            Console.WriteLine($"{Id}: val={val}");
-                            mMemory[(int) mMemory[mInstructionPointer + 1]] = val; // from text
+                            BigInteger val = Input.Dequeue();
+
+                            Console.WriteLine($"{Id}: READ val={val}");
+                            int memoryIndex = GetMemoryIndex(modes);
+                            mMemory[memoryIndex] = val;
+
                             mInstructionPointer += 2;
                         }
                         break;
@@ -94,12 +82,7 @@ namespace aoc2019
                             
                             Console.WriteLine($"{Id}: OUTPUT {val} ");
                             Output.Add(val);
-                            //Console.WriteLine(Output);
-                            //if (Next != null)
-                            //{
-                            //Next.Input.Enqueue(val);
-                            //Next.Signal.Set();
-                            //}
+                            
                             mInstructionPointer += 2;
                         }
                         break;
@@ -137,9 +120,11 @@ namespace aoc2019
                             // if the first parameter is less than the second parameter, it stores 1 in the position given by the third parameter.
                             // Otherwise, it stores 0.
                         {
+                            Assert.IsTrue(modes.Count() <= 3);
                             GetValues(ref modes, out BigInteger a, out BigInteger b);
                             BigInteger val = a < b ? 1 : 0;
-                            mMemory[(int) mMemory[mInstructionPointer + 3]] = val;
+                            int memoryIndex = GetMemoryIndex(modes, 3);
+                            mMemory[memoryIndex] = val;
                             mInstructionPointer += 4;
                         }
                         break;
@@ -147,10 +132,11 @@ namespace aoc2019
                             // if the first parameter is equal to the second parameter, it stores 1 in the position given by the third parameter.
                             // Otherwise, it stores 0.
                         {
-                            Assert.IsTrue(modes.Count() < 3);
+                            Assert.IsTrue(modes.Count() <= 3);
                             GetValues(ref modes, out BigInteger a, out BigInteger b);
                             BigInteger val = a == b ? 1 : 0;
-                            mMemory[(int) mMemory[mInstructionPointer + 3]] = val;
+                            int memoryIndex = GetMemoryIndex(modes, 3);
+                            mMemory[memoryIndex] = val;
                             mInstructionPointer += 4;
                         }
                         break;
@@ -177,7 +163,25 @@ namespace aoc2019
                 modes = GetModes(mMemory[mInstructionPointer]);
                 Console.WriteLine($"{Id}: INSTRUCTION {mMemory[mInstructionPointer]} => {opCode} {String.Join(",", modes)}");
             }
-            //return true;
+        }
+
+        private int GetMemoryIndex(int[] modes, int index = 1)
+        {
+            int memoryIndex = (int)mMemory[mInstructionPointer + index];
+            int mode = 0;
+            if (modes.Count() >= index)
+            {
+                mode = modes[index - 1];
+            }
+            
+            if (mode == 1) Assert.Fail();
+
+            if (mode == 2)
+            {
+                memoryIndex += mRelativeBase;
+            }
+
+            return memoryIndex;
         }
 
         private void GetValues(ref int[] modes, out BigInteger a, out BigInteger b)
@@ -189,27 +193,30 @@ namespace aoc2019
         private BigInteger GetValue(ref int[] modes, int index)
         {
             Assert.IsTrue(index > 0);
-            BigInteger result = -1337; //position
+            BigInteger result = 0; //position
+            int mode = 0;
             if (modes.Count() >= index)
             {
-                if (modes[index - 1] == 0)
-                {
-                    result = mMemory[(int)mMemory[mInstructionPointer + index]];
-                }
-                else if (modes[index - 1] == 1)
-                {
-                    //immediate
-                    result = mMemory[mInstructionPointer + index]; 
-                }
-                else if (modes[index - 1] == 2) 
-                {
-                    //relative
-                    result = mMemory[mRelativeBase + (int)mMemory[mInstructionPointer + index]]; ;
-                }
+                mode = modes[index - 1];
+            }
+            
+            if (mode == 0)
+            {
+                result = mMemory[(int)mMemory[mInstructionPointer + index]];
+            }
+            else if (mode == 1)
+            {
+                //immediate
+                result = mMemory[mInstructionPointer + index]; 
+            }
+            else if (mode == 2) 
+            {
+                //relative
+                result = mMemory[mRelativeBase + (int)mMemory[mInstructionPointer + index]]; ;
             }
             else
             {
-                result = mMemory[(int)mMemory[mInstructionPointer + index]];
+                Assert.Fail("mode invalid");
             }
             return result;
         }
@@ -275,6 +282,7 @@ namespace aoc2019
             BigInteger[] init = Parse(input);
             computer.init(init);
             computer.execute();
+            Console.WriteLine("OUTPUTS:\n" + String.Join("\n   ", computer.Output));
         }
 
         private static BigInteger[] Parse(string input1)
