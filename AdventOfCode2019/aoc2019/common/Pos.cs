@@ -28,6 +28,8 @@ namespace aoc2019
         {
             return new Pos(p1.x + p2.x, p1.y + p2.y);
         }
+        public static Pos operator -(Pos p) => new Pos(-p.x, -p.y);
+        public static Pos operator -(Pos p1, Pos p2) => p1 + (-p2);
 
         public override string ToString()
         {
@@ -59,6 +61,20 @@ namespace aoc2019
         public override int GetHashCode()
         {
             return x.GetHashCode() * 7919 + y.GetHashCode();
+        }
+
+        internal bool Between(Pos p1, Pos p2)
+        {
+            if (p1.x == p2.x && p2.x == this.x)
+            {
+                return (p1.y < y && y < p2.y) || (p2.y < y && y < p1.y);
+            }
+            if (!(new Line(this, p1).OnLine(p2))) return false;
+
+            if (p1.x < this.x) return p2.x > this.x;
+            if (p1.x > this.x) return p2.x < this.x;
+            
+            return false;
         }
     }
 }
