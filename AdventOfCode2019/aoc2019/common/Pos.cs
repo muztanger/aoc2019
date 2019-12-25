@@ -76,5 +76,11 @@ namespace aoc2019
             
             return false;
         }
+
+        internal double Dist(Pos p1)
+        {
+            var delta = p1 - this;
+            return Math.Sqrt(delta.x * (double) delta.x + delta.y * (double) delta.y);
+        }
     }
 }

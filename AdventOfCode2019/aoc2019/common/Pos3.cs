@@ -40,10 +40,10 @@ namespace aoc2019
             return $"({x}, {y}, {z})";
         }
 
-        //internal int manhattan(Pos inter)
-        //{
-        //    return Math.Abs(x - inter.x) + Math.Abs(y - inter.y) + Math.Abs(z - inter.z);
-        //}
+        internal int manhattan(Pos3 inter)
+        {
+            return Math.Abs(x - inter.x) + Math.Abs(y - inter.y) + Math.Abs(z - inter.z);
+        }
 
         bool IEquatable<Pos3>.Equals(Pos3 other)
         {
