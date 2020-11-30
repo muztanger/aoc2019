@@ -130,7 +130,8 @@ namespace aoc2019
             //Console.WriteLine($"Starting {nameof(Day16Part2)}");
           
             var arr = new List<int>(input.Select(x => int.Parse(x.ToString())));
-            var offset = int.Parse(input.Remove(8));
+            
+            var offset = int.Parse(input.Remove(7));
             var result = new List<int>();
             var j = 0;
             const int phases = 100;
